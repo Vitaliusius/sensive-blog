@@ -1,7 +1,7 @@
 from django.db import models
 from django.urls import reverse
 from django.contrib.auth.models import User
-from django.db.models import Count
+from django.db.models import Count, Prefetch
 
 
 class PostQuerySet(models.QuerySet):
@@ -18,7 +18,7 @@ class PostQuerySet(models.QuerySet):
         # функция добавляет количество коментариев
         # Два annotate в одном запросе - это очень ресурсоемко.
         # Поэтому функция использует ресур более рационально,
-        # так как не перемножает количество двух полей для кажддого поста
+        # так как не перемножает количество двух полей для каждого поста
         most_popular_posts = self
         most_popular_posts_ids = [post.id for post in most_popular_posts]
         posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
@@ -30,12 +30,22 @@ class PostQuerySet(models.QuerySet):
             post.comments_count = count_for_id[post.id]
         return most_popular_posts
 
+    def fetch_author_and_likes_count(self):
+        return self.select_related('author').annotate(likes_count=Count('likes'))
+
+    def fetch_author_and_tags(self):
+        return self.prefetch_related('author', 'tags').annotate(comments_count=Count('comments'))
+
 
 class TagQuerySet(models.QuerySet):
 
     def popular(self):
         popular_tags = self.annotate(posts_count=Count('posts')).order_by('-posts_count')
         return popular_tags
+
+    def fetch_count_posts(self):
+        queryset = Tag.objects.annotate(posts_count=Count('posts'))
+        return self.prefetch_related(Prefetch('posts', queryset=queryset))
 
 
 class Post(models.Model):
