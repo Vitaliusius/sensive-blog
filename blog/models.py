@@ -15,7 +15,10 @@ class PostQuerySet(models.QuerySet):
         return popular_posts
 
     def fetch_with_comments_count(self):
-
+        # функция добавляет количество коментариев
+        # Два annotate в одном запросе - это очень ресурсоемко.
+        # Поэтому функция использует ресур более рационально,
+        # так как не перемножает количество двух полей для кажддого поста
         most_popular_posts = self
         most_popular_posts_ids = [post.id for post in most_popular_posts]
         posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
