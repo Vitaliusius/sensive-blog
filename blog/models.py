@@ -15,26 +15,13 @@ class PostQuerySet(models.QuerySet):
         return popular_posts
 
     def fetch_with_comments_count(self):
-        # функция добавляет количество коментариев
-        # Два annotate в одном запросе - это очень ресурсоемко.
-        # Поэтому функция использует ресур более рационально,
-        # так как не перемножает количество двух полей для каждого поста
-        most_popular_posts = self
-        most_popular_posts_ids = [post.id for post in most_popular_posts]
-        posts_with_comments = Post.objects.filter(id__in=most_popular_posts_ids).annotate(
-            comments_count=Count('comments')
-        )
-        ids_and_comments = posts_with_comments.values_list('id', 'comments_count')
-        count_for_id = dict(ids_and_comments)
-        for post in most_popular_posts:
-            post.comments_count = count_for_id[post.id]
-        return most_popular_posts
+        return self.annotate(comments_count=Count('comments'))
 
     def fetch_author_and_likes_count(self):
         return self.select_related('author').annotate(likes_count=Count('likes'))
 
     def fetch_author_and_tags(self):
-        return self.prefetch_related('author', 'tags').annotate(comments_count=Count('comments'))
+        return self.select_related('author').prefetch_related('tags').annotate(comments_count=Count('comments'))
 
 
 class TagQuerySet(models.QuerySet):
@@ -87,6 +74,7 @@ class Post(models.Model):
 class Tag(models.Model):
     title = models.CharField('Тег', max_length=20, unique=True)
     objects = TagQuerySet.as_manager()
+
     def __str__(self):
         return self.title
 
@@ -123,5 +111,3 @@ class Comment(models.Model):
         ordering = ['published_at']
         verbose_name = 'комментарий'
         verbose_name_plural = 'комментарии'
-
-
